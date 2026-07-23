@@ -25,7 +25,7 @@ Comandi eseguiti:
 - `npm run test:coverage`
 
 Esiti:
-- test: 20/20 verdi
+- test: 22/22 verdi
 - coverage globale (v8):
   - statements: 37.84%
   - branch: 57.14%
@@ -48,6 +48,7 @@ Stabilizzazione aggiuntiva (kickoff Sprint 3.7):
 - gestione utenti admin resa coerente in `users` (`get/list` admin, update amministrativi controllati)
 - policy `event_logs.create` estesa con allowlist separata per eventi lifecycle admin (`USER_APPROVED`, `USER_SUSPENDED`, `USER_REACTIVATED`, `ROLE_CHANGED`)
 - mantenuta distinzione tra eventi dominio e audit amministrativo
+- `event_statistics` e `event_audit` chiuse in scrittura lato client; percorso previsto: writer trusted infrastrutturale
 
 Verifica ruoli (sintesi):
 - utente non autenticato: nessun accesso sensibile

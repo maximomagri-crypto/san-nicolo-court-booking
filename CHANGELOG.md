@@ -13,6 +13,7 @@
 - UX auth: rimozione `alert()` bloccanti, messaggi inline uniformi e accessibili.
 - Accessibilita: skip link, focus visibile coerente, autocomplete nei campi auth.
 - Hardening `firestore.rules` su collection sensibili (`event_logs`, `event_statistics`, `event_audit`, `notifications`) con allowlist eventi e vincoli campi.
+- Collection infrastrutturali (`event_statistics`, `event_audit`) rese non scrivibili dal client in attesa di writer trusted (Cloud Functions/Admin SDK).
 - Bundle ridotto e warning Vite su chunk > 500kB rimosso tramite splitting.
 
 ### Metrics

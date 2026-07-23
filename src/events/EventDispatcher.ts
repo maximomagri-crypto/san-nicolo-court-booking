@@ -14,7 +14,16 @@ export class EventDispatcher {
         continue
       }
 
-      await handler.handle(event)
+      try {
+        await handler.handle(event)
+      } catch (error) {
+        // Infrastructure handlers are best-effort to keep domain operations stable.
+        console.error('Domain event handler failed', {
+          eventId: event.id,
+          eventType: event.type,
+          error,
+        })
+      }
     }
   }
 }
