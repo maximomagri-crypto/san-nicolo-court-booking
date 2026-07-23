@@ -25,7 +25,7 @@ Comandi eseguiti:
 - `npm run test:coverage`
 
 Esiti:
-- test: 18/18 verdi
+- test: 20/20 verdi
 - coverage globale (v8):
   - statements: 37.84%
   - branch: 57.14%
@@ -44,6 +44,11 @@ Hardening applicato:
 - `event_audit.create` limitata a eventi dominio noti
 - `event_statistics` limitata al documento `global` e a campi contatore espliciti
 
+Stabilizzazione aggiuntiva (kickoff Sprint 3.7):
+- gestione utenti admin resa coerente in `users` (`get/list` admin, update amministrativi controllati)
+- policy `event_logs.create` estesa con allowlist separata per eventi lifecycle admin (`USER_APPROVED`, `USER_SUSPENDED`, `USER_REACTIVATED`, `ROLE_CHANGED`)
+- mantenuta distinzione tra eventi dominio e audit amministrativo
+
 Verifica ruoli (sintesi):
 - utente non autenticato: nessun accesso sensibile
 - utente ACTIVE: operazioni dominio consentite secondo regole, senza privilegi admin
@@ -57,6 +62,8 @@ Interventi applicati:
 - skip link per navigazione da tastiera
 - focus visibility coerente su elementi interattivi
 - autocomplete semantico su form login/register
+- uniformati annunci async (`role=status` / `role=alert`) su splash, status page, toast e messaggistica eventi
+- aggiunti segnali `aria-busy` nelle operazioni asincrone principali
 
 ## 5) RC Checklist
 
@@ -65,4 +72,4 @@ Interventi applicati:
 - warning build prioritari: OK
 - regressione performance vs baseline 0.3.6: OK
 - documentazione sprint aggiornata: OK
-- milestone versione: `v0.4.0`
+- milestone versione: `v0.4.0-rc1` (baseline di stabilizzazione)
