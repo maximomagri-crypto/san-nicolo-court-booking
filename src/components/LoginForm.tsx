@@ -19,12 +19,12 @@ export default function LoginForm({ onSubmit, onSwitchToRegister }: Props) {
       >
         <label className="field">
           <span className="label-text">Email</span>
-          <input className="input" name="email" type="email" required />
+          <input className="input" name="email" type="email" autoComplete="email" required />
         </label>
 
         <label className="field">
           <span className="label-text">Password</span>
-          <input className="input" name="password" type="password" required />
+          <input className="input" name="password" type="password" autoComplete="current-password" required />
         </label>
 
         <button className="login-btn" type="submit">
@@ -32,9 +32,9 @@ export default function LoginForm({ onSubmit, onSwitchToRegister }: Props) {
         </button>
       </form>
 
-      <a className="login-link" href="#" onClick={(e) => e.preventDefault()}>
+      <button className="login-link" type="button">
         Password dimenticata?
-      </a>
+      </button>
 
       <div className="signup-row">
         <span>Non hai un account?</span>

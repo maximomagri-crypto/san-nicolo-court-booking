@@ -1,0 +1,322 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Common utility functions used by all sections.
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function getUserDocument(uid) {
+      return get(/databases/$(database)/documents/users/$(uid));
+    }
+
+    // An authenticated user is considered ACTIVE if their profile says so.
+    // Used by booking access, message board read access and other modules.
+    function isActiveUser() {
+      return isSignedIn() && getUserDocument(request.auth.uid).data.status == 'ACTIVE';
+    }
+
+    function isAdminUser() {
+      return isSignedIn() && (
+        getUserDocument(request.auth.uid).data.role == 'SUB_ADMIN' ||
+        getUserDocument(request.auth.uid).data.role == 'SUPER_ADMIN'
+      );
+    }
+
+    function isSuperAdmin() {
+      return isSignedIn() && getUserDocument(request.auth.uid).data.role == 'SUPER_ADMIN';
+    }
+
+    function isUserOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function ownNotificationListQuery() {
+      return request.query.where('recipientUid', '==', request.auth.uid);
+    }
+
+    function notificationReadUpdateAllowed() {
+      return isSignedIn() &&
+        request.auth.uid == resource.data.recipientUid &&
+        request.resource.data.recipientUid == resource.data.recipientUid &&
+        request.resource.data.diff(resource.data).changedKeys().hasOnly(['read']);
+    }
+
+    function isKnownDomainEventType(eventType) {
+      return eventType == 'GameScheduled' ||
+        eventType == 'PlayerJoined' ||
+        eventType == 'PlayerLeft' ||
+        eventType == 'WaitlistJoined' ||
+        eventType == 'WaitlistPromoted' ||
+        eventType == 'ParticipationConfirmed' ||
+        eventType == 'ParticipationDeclined' ||
+        eventType == 'ConfirmationExpired' ||
+        eventType == 'GameCompleted';
+    }
+
+    function isSupportedNotificationType(notificationType) {
+      return notificationType == 'GameScheduled' ||
+        notificationType == 'PlayerJoined' ||
+        notificationType == 'PlayerLeft' ||
+        notificationType == 'WaitlistPromoted' ||
+        notificationType == 'ParticipationConfirmed' ||
+        notificationType == 'ParticipationDeclined' ||
+        notificationType == 'GameCompleted';
+    }
+
+    function userProfileUpdateAllowed() {
+      return isUserOwner(resource.data.uid) &&
+        request.resource.data.uid == resource.data.uid &&
+        request.resource.data.email == resource.data.email &&
+        request.resource.data.role == resource.data.role &&
+        request.resource.data.status == resource.data.status &&
+        request.resource.data.approvedAt == resource.data.approvedAt &&
+        request.resource.data.approvedBy == resource.data.approvedBy &&
+        request.resource.data.createdAt == resource.data.createdAt &&
+        request.resource.data.statistics == resource.data.statistics &&
+        request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          'displayName',
+          'phone',
+          'photoURL',
+          'lastLogin',
+          'isProfileComplete',
+        ]);
+    }
+
+    // ---------------------------------------------------------------------
+    // Users collection
+    // ---------------------------------------------------------------------
+    // Purpose: user profiles and access control.
+    // Used by the auth module, profile editor, and admin user management.
+    // Only the owner may read their own profile, and only a small set of fields can be updated.
+    match /users/{userId} {
+      allow get: if isUserOwner(userId);
+      allow list: if false; // No broad listing of user profiles.
+
+      allow create: if isSignedIn() &&
+        request.auth.uid == request.resource.data.uid &&
+        request.resource.data.role == 'USER' &&
+        request.resource.data.status == 'PENDING_APPROVAL' &&
+        request.resource.data.approvedAt == null &&
+        request.resource.data.approvedBy == null &&
+        request.resource.data.email is string &&
+        request.resource.data.displayName is string &&
+        request.resource.data.createdAt is timestamp;
+
+      allow update: if userProfileUpdateAllowed();
+      allow delete: if false;
+    }
+
+    // ---------------------------------------------------------------------
+    // Game events collection
+    // ---------------------------------------------------------------------
+    // Purpose: Sprint 3.1 minimal booking aggregate root.
+    // Notes:
+    // - BR-001 is enforced here (ACTIVE user required).
+    // - BR-002 baseline validation is enforced (required fields and start<end).
+    // - BR-003/BR-004/BR-005 are enforced in BookingPolicy at application layer.
+    match /game_events/{eventId} {
+      allow get, list: if isActiveUser();
+
+      allow create: if isActiveUser() &&
+        request.resource.data.createdBy == request.auth.uid &&
+        request.resource.data.createdBy is string &&
+        request.resource.data.title is string &&
+        request.resource.data.description is string &&
+        request.resource.data.type is string &&
+        request.resource.data.courtName is string &&
+        request.resource.data.maxPlayers is number &&
+        request.resource.data.maxPlayers > 0 &&
+        request.resource.data.status is string &&
+        request.resource.data.isPublic is bool &&
+        request.resource.data.startAt is timestamp &&
+        request.resource.data.endAt is timestamp &&
+        request.resource.data.createdAt is timestamp &&
+        request.resource.data.startAt < request.resource.data.endAt &&
+        (!request.resource.data.keys().hasAny(['bookingPriority']) || request.resource.data.bookingPriority in ['GUARANTEED', 'NON_GUARANTEED']) &&
+        (!request.resource.data.keys().hasAny(['isCompleted']) || request.resource.data.isCompleted is bool) &&
+        (!request.resource.data.keys().hasAny(['completedAt']) || request.resource.data.completedAt == null || request.resource.data.completedAt is timestamp) &&
+        request.resource.data.participants is list;
+
+      allow update: if isActiveUser() &&
+        request.resource.data.createdBy == resource.data.createdBy &&
+        request.resource.data.title == resource.data.title &&
+        request.resource.data.description == resource.data.description &&
+        request.resource.data.type == resource.data.type &&
+        request.resource.data.courtName == resource.data.courtName &&
+        request.resource.data.startAt == resource.data.startAt &&
+        request.resource.data.endAt == resource.data.endAt &&
+        request.resource.data.maxPlayers == resource.data.maxPlayers &&
+        request.resource.data.isPublic == resource.data.isPublic &&
+        request.resource.data.createdAt == resource.data.createdAt &&
+        request.resource.data.bookingPriority == resource.data.bookingPriority &&
+        request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          'participants',
+          'status',
+          'isCompleted',
+          'completedAt',
+          'updatedAt',
+        ]);
+
+      allow delete: if false;
+    }
+
+    // ---------------------------------------------------------------------
+    // Waiting list collection
+    // ---------------------------------------------------------------------
+    // Purpose: Sprint 3.3 waiting list queue and promotion tracking.
+    match /waiting_list/{entryId} {
+      allow get, list: if isActiveUser();
+      allow create: if isActiveUser() &&
+        request.resource.data.eventId is string &&
+        request.resource.data.participant.uid == request.auth.uid &&
+        request.resource.data.participant.uid is string &&
+        request.resource.data.participant.displayName is string &&
+        request.resource.data.participant.email is string &&
+        request.resource.data.status == 'ACTIVE' &&
+        request.resource.data.position is number &&
+        request.resource.data.position > 0 &&
+        request.resource.data.joinedAt is timestamp;
+
+      allow update: if isActiveUser() &&
+        request.resource.data.eventId == resource.data.eventId &&
+        request.resource.data.participant == resource.data.participant &&
+        request.resource.data.position == resource.data.position &&
+        request.resource.data.joinedAt == resource.data.joinedAt &&
+        request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          'status',
+          'promotedAt',
+        ]);
+
+      allow delete: if false;
+    }
+
+    // ---------------------------------------------------------------------
+    // Booking settings collection
+    // ---------------------------------------------------------------------
+    // Purpose: booking policy configuration used server-side/client-side.
+    match /booking_settings/{settingId} {
+      allow get, list: if isActiveUser();
+      allow create, update, delete: if isSuperAdmin();
+    }
+
+    // ---------------------------------------------------------------------
+    // Notifications collection
+    // ---------------------------------------------------------------------
+    // Purpose: per-user notifications.
+    // Users may read their own notifications and may update only the read state.
+    match /notifications/{notificationId} {
+      allow get: if isSignedIn() && request.auth.uid == resource.data.recipientUid;
+      allow list: if isSignedIn() && ownNotificationListQuery();
+
+      allow create: if isActiveUser() &&
+        request.resource.data.recipientUid == request.auth.uid &&
+        request.resource.data.recipientUid is string &&
+        request.resource.data.type is string &&
+        isSupportedNotificationType(request.resource.data.type) &&
+        request.resource.data.title is string &&
+        request.resource.data.body is string &&
+        request.resource.data.relatedEventId is string &&
+        request.resource.data.metadata is map &&
+        request.resource.data.read == false &&
+        request.resource.data.createdAt is timestamp;
+
+      allow update: if notificationReadUpdateAllowed();
+      allow delete: if false;
+    }
+
+    // ---------------------------------------------------------------------
+    // Event logs collection
+    // ---------------------------------------------------------------------
+    // Purpose: audit trail for administrative actions.
+    // Normal users have no access. Admins may read logs for review.
+    match /event_logs/{logId} {
+      allow get, list: if isAdminUser();
+      allow create: if isActiveUser() &&
+        request.resource.data.actorUid == request.auth.uid &&
+        request.resource.data.eventType is string &&
+        isKnownDomainEventType(request.resource.data.eventType) &&
+        request.resource.data.actorUid is string &&
+        request.resource.data.bookingId is string &&
+        request.resource.data.payload is map &&
+        request.resource.data.timestamp is timestamp;
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // ---------------------------------------------------------------------
+    // Event statistics collection
+    // ---------------------------------------------------------------------
+    // Purpose: aggregate counters derived from persisted domain events.
+    match /event_statistics/{statId} {
+      allow get, list: if isAdminUser();
+      allow create: if isActiveUser() &&
+        statId == 'global' &&
+        request.resource.data.updatedAt is timestamp &&
+        request.resource.data.keys().hasOnly([
+          'totalEvents',
+          'gamesScheduled',
+          'participationChanges',
+          'participationConfirmed',
+          'participationDropped',
+          'waitlistPromotions',
+          'gamesCompleted',
+          'otherEvents',
+          'updatedAt',
+        ]);
+      allow update: if isActiveUser() &&
+        statId == 'global' &&
+        request.resource.data.updatedAt is timestamp &&
+        request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          'totalEvents',
+          'gamesScheduled',
+          'participationChanges',
+          'participationConfirmed',
+          'participationDropped',
+          'waitlistPromotions',
+          'gamesCompleted',
+          'otherEvents',
+          'updatedAt',
+        ]);
+      allow delete: if false;
+    }
+
+    // ---------------------------------------------------------------------
+    // Event audit collection
+    // ---------------------------------------------------------------------
+    // Purpose: handler-level audit records generated by EventDispatcher.
+    match /event_audit/{auditId} {
+      allow get, list: if isAdminUser();
+      allow create: if isActiveUser() &&
+        request.resource.data.actorUid == request.auth.uid &&
+        request.resource.data.sourceEventId is string &&
+        request.resource.data.sourceEventType is string &&
+        isKnownDomainEventType(request.resource.data.sourceEventType) &&
+        request.resource.data.actorUid is string &&
+        request.resource.data.aggregateId is string &&
+        request.resource.data.payload is map &&
+        request.resource.data.createdAt is timestamp;
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // ---------------------------------------------------------------------
+    // Message board collection
+    // ---------------------------------------------------------------------
+    // Purpose: public announcements and admin messages.
+    // Active users can read posts; only admins can write.
+    match /message_board/{messageId} {
+      allow get, list: if isActiveUser();
+      allow create, update, delete: if isAdminUser();
+    }
+
+    // ---------------------------------------------------------------------
+    // Settings collection
+    // ---------------------------------------------------------------------
+    // Purpose: application settings controlled by the super admin.
+    match /settings/{settingId} {
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isSuperAdmin();
+    }
+  }
+}

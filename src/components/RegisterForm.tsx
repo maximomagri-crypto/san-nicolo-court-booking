@@ -20,17 +20,17 @@ export default function RegisterForm({ onSubmit, onSwitchToLogin }: Props) {
       >
         <label className="field">
           <span className="label-text">Nome</span>
-          <input className="input" name="name" type="text" />
+          <input className="input" name="name" type="text" autoComplete="name" />
         </label>
 
         <label className="field">
           <span className="label-text">Email</span>
-          <input className="input" name="email" type="email" required />
+          <input className="input" name="email" type="email" autoComplete="email" required />
         </label>
 
         <label className="field">
           <span className="label-text">Password</span>
-          <input className="input" name="password" type="password" required />
+          <input className="input" name="password" type="password" autoComplete="new-password" required />
         </label>
 
         <button className="login-btn" type="submit">
