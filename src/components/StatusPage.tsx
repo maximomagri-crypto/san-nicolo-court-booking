@@ -7,7 +7,7 @@ type Props = {
 
 export default function StatusPage({ title, description, actionLabel, onAction }: Props) {
   return (
-    <section className="status-root screen screen--visible" aria-label={title}>
+    <section className="status-root screen screen--visible" aria-label={title} role="status" aria-live="polite">
       <div className="status-container">
         <h1 className="status-title">{title}</h1>
         <p className="status-description">{description}</p>

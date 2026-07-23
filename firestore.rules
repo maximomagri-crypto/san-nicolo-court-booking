@@ -31,10 +31,6 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == uid;
     }
 
-    function ownNotificationListQuery() {
-      return request.query.where('recipientUid', '==', request.auth.uid);
-    }
-
     function notificationReadUpdateAllowed() {
       return isSignedIn() &&
         request.auth.uid == resource.data.recipientUid &&
@@ -52,6 +48,13 @@ service cloud.firestore {
         eventType == 'ParticipationDeclined' ||
         eventType == 'ConfirmationExpired' ||
         eventType == 'GameCompleted';
+    }
+
+    function isAdminLifecycleEventType(eventType) {
+      return eventType == 'USER_APPROVED' ||
+        eventType == 'USER_SUSPENDED' ||
+        eventType == 'USER_REACTIVATED' ||
+        eventType == 'ROLE_CHANGED';
     }
 
     function isSupportedNotificationType(notificationType) {
@@ -83,6 +86,37 @@ service cloud.firestore {
         ]);
     }
 
+    function adminUserStatusUpdateAllowed(userId) {
+      return isAdminUser() &&
+        request.auth.uid != userId &&
+        resource.data.role != 'SUPER_ADMIN' &&
+        request.resource.data.uid == resource.data.uid &&
+        request.resource.data.email == resource.data.email &&
+        request.resource.data.displayName == resource.data.displayName &&
+        request.resource.data.createdAt == resource.data.createdAt &&
+        request.resource.data.statistics == resource.data.statistics &&
+        request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          'status',
+          'approvedAt',
+          'approvedBy',
+        ]) &&
+        request.resource.data.status in ['PENDING_APPROVAL', 'ACTIVE', 'SUSPENDED'] &&
+        (!request.resource.data.diff(resource.data).changedKeys().hasAny(['approvedBy']) || request.resource.data.approvedBy is string);
+    }
+
+    function adminUserRoleUpdateAllowed(userId) {
+      return isSuperAdmin() &&
+        request.auth.uid != userId &&
+        resource.data.role != 'SUPER_ADMIN' &&
+        request.resource.data.uid == resource.data.uid &&
+        request.resource.data.email == resource.data.email &&
+        request.resource.data.displayName == resource.data.displayName &&
+        request.resource.data.createdAt == resource.data.createdAt &&
+        request.resource.data.statistics == resource.data.statistics &&
+        request.resource.data.diff(resource.data).changedKeys().hasOnly(['role']) &&
+        request.resource.data.role in ['USER', 'SUB_ADMIN'];
+    }
+
     // ---------------------------------------------------------------------
     // Users collection
     // ---------------------------------------------------------------------
@@ -90,8 +124,8 @@ service cloud.firestore {
     // Used by the auth module, profile editor, and admin user management.
     // Only the owner may read their own profile, and only a small set of fields can be updated.
     match /users/{userId} {
-      allow get: if isUserOwner(userId);
-      allow list: if false; // No broad listing of user profiles.
+      allow get: if isUserOwner(userId) || isAdminUser();
+      allow list: if isAdminUser();
 
       allow create: if isSignedIn() &&
         request.auth.uid == request.resource.data.uid &&
@@ -103,7 +137,9 @@ service cloud.firestore {
         request.resource.data.displayName is string &&
         request.resource.data.createdAt is timestamp;
 
-      allow update: if userProfileUpdateAllowed();
+      allow update: if userProfileUpdateAllowed() ||
+        adminUserStatusUpdateAllowed(userId) ||
+        adminUserRoleUpdateAllowed(userId);
       allow delete: if false;
     }
 
@@ -207,7 +243,7 @@ service cloud.firestore {
     // Users may read their own notifications and may update only the read state.
     match /notifications/{notificationId} {
       allow get: if isSignedIn() && request.auth.uid == resource.data.recipientUid;
-      allow list: if isSignedIn() && ownNotificationListQuery();
+      allow list: if false;
 
       allow create: if isActiveUser() &&
         request.resource.data.recipientUid == request.auth.uid &&
@@ -232,14 +268,23 @@ service cloud.firestore {
     // Normal users have no access. Admins may read logs for review.
     match /event_logs/{logId} {
       allow get, list: if isAdminUser();
-      allow create: if isActiveUser() &&
-        request.resource.data.actorUid == request.auth.uid &&
+      allow create: if request.resource.data.actorUid == request.auth.uid &&
         request.resource.data.eventType is string &&
-        isKnownDomainEventType(request.resource.data.eventType) &&
         request.resource.data.actorUid is string &&
-        request.resource.data.bookingId is string &&
         request.resource.data.payload is map &&
-        request.resource.data.timestamp is timestamp;
+        request.resource.data.timestamp is timestamp &&
+        (
+          (
+            isActiveUser() &&
+            isKnownDomainEventType(request.resource.data.eventType) &&
+            request.resource.data.bookingId is string
+          ) ||
+          (
+            isAdminUser() &&
+            isAdminLifecycleEventType(request.resource.data.eventType) &&
+            request.resource.data.targetUid is string
+          )
+        );
       allow update: if false;
       allow delete: if false;
     }

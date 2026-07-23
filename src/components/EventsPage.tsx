@@ -101,7 +101,7 @@ export default function EventsPage() {
   }
 
   return (
-    <section className="events-root screen screen--visible" aria-label="Eventi sportivi">
+    <section className="events-root screen screen--visible" aria-label="Eventi sportivi" aria-busy={loading || saving}>
       <div className="events-header">
         <div>
           <p className="events-context">Calendario prenotazioni</p>
@@ -117,8 +117,8 @@ export default function EventsPage() {
         <div className="events-list">
           <h2>Prossimi eventi</h2>
 
-          {loading && <p>Caricamento eventi...</p>}
-          {error && <p className="error-message">Errore: {String(error.message)}</p>}
+          {loading && <p role="status" aria-live="polite">Caricamento eventi...</p>}
+          {error && <p className="error-message" role="alert">Errore: {String(error.message)}</p>}
           {!loading && visibleEvents.length === 0 && <p>Nessun evento programmato.</p>}
 
           {visibleEvents.map((item) => (
@@ -185,8 +185,8 @@ export default function EventsPage() {
                   required
                 />
               </label>
-              {successMessage && <p className="success-message">{successMessage}</p>}
-              {errorMessage && <p className="error-message">{errorMessage}</p>}
+              {successMessage && <p className="success-message" role="status">{successMessage}</p>}
+              {errorMessage && <p className="error-message" role="alert">{errorMessage}</p>}
               <button className="primary-btn" type="submit" disabled={saving}>
                 {saving ? 'Salvataggio...' : 'Crea evento'}
               </button>
