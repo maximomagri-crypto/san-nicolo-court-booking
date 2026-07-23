@@ -1,32 +1,33 @@
-# React + TypeScript + Vite
+# San Nicolo Court Booking
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Applicazione di prenotazione campi basata su React + TypeScript + Vite + Firebase.
 
-Currently, two official plugins are available:
+## Stato progetto
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Milestone corrente: `v0.4.0`.
 
-## React Compiler
+Il core funzionale e completo e il progetto e in fase **Sprint 3.7 - Hardening & Release Candidate**.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Funzionalita principali disponibili:
+- gestione eventi di gioco
+- gestione partecipanti
+- waiting list con promozione automatica
+- lifecycle conferme (`PENDING_CONFIRMATION`, `CONFIRMED`, `DECLINED`, `EXPIRED`)
+- priorita prenotazione giornaliera (`GUARANTEED`, `NON_GUARANTEED`)
+- completamento automatico partita
+- domain events + dispatcher + handler infrastrutturali
 
-## Expanding the Oxlint configuration
+## Comandi principali
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+- `npm run dev` - avvio locale
+- `npm test` - test automatici
+- `npm run test:coverage` - report copertura
+- `npm run build` - build produzione
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
-```
+## Documentazione
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+- `ARCHITECTURE.md` - guida architetturale e DoD
+- `BOOKING_ENGINE_DESIGN.md` - design e ADR
+- `CHANGELOG.md` - cronologia sprint/versioni
+- `docs/RETROSPECTIVE.md` - retrospettive sprint
+- `docs/SPRINT_3_7_RC_REPORT.md` - report tecnico RC
